@@ -103,9 +103,23 @@ create table QUERYNTENA.Compra_Estadia(
 	cest_numero decimal(18,0) PRIMARY KEY,
 	cest_empresa int FOREIGN KEY references QUERYNTENA.Empresa(empr_id),
 	cest_estadia decimal(18,0) FOREIGN KEY references QUERYNTENA.Estadia(esta_codigo),
-	cest_fecha datetime2(3),
+	cest_fecha datetime2(3)
 	--cest_costo_total decimal(18,2)
 )
+
+-- hest = Habitacion ESTadia
+create table QUERYNTENA.Habitacion_Estadia(
+	hest_estadia decimal(18,0) NOT NULL,
+	hest_habitacion_nro INT NOT NULL,
+	hest_hotel INT NOT NULL,
+	PRIMARY KEY(hest_estadia, hest_habitacion_nro, hest_hotel),
+	FOREIGN KEY(hest_estadia) REFERENCES QUERYNTENA.Estadia(esta_codigo),
+	FOREIGN KEY(hest_habitacion_nro) REFERENCES QUERYNTENA.Habitacion(habi_numero),
+	FOREIGN KEY(hest_hotel) REFERENCES QUERYNTENA.Hotel(hote_id),
+	habi_fecha_ini datetime2(3),
+	habi_cantidad_noches decimal(18,0)
+)
+
 
 insert into QUERYNTENA.Empresa (empr_razon_social)
 select distinct EMPRESA_RAZON_SOCIAL from gd_esquema.Maestra
