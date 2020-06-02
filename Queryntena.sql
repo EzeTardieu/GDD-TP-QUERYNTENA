@@ -82,6 +82,31 @@ create table QUERYNTENA.Habitacion(
 	habi_tipo decimal(18,0) FOREIGN KEY references QUERYNTENA.Tipo_Habitacion(tipo_habitacion_codigo)
 )
 
+create table QUERYNTENA.Vuelo(
+	vuel_codigo decimal(19,0) PRIMARY KEY,
+	vuel_ruta_aerea int FOREIGN KEY references QUERYNTENA.Ruta_aerea(ruta_id),
+	vuel_avion nvarchar(50) FOREIGN KEY references QUERYNTENA.Avion(avio_id),
+	vuel_fecha_salida datetime2(3),
+	vuel_fecha_llegada datetime2(3)
+)
+
+--agrego un id como PK porque hay vuelos que tienen mismo nro de butaca pero de distinto tipo
+create table QUERYNTENA.Butaca_Vuelo(
+	buta_id int IDENTITY(1,1) PRIMARY KEY,
+	buta_vuelo decimal(19,0) FOREIGN KEY references QUERYNTENA.Vuelo(vuel_codigo),
+	buta_numero decimal(18,0),
+	buta_tipo nvarchar(255)
+)
+
+-- cest = Compra ESTadia
+create table QUERYNTENA.Compra_Estadia(
+	cest_numero decimal(18,0) PRIMARY KEY,
+	cest_empresa int FOREIGN KEY references QUERYNTENA.Empresa(empr_id),
+	cest_estadia decimal(18,0) FOREIGN KEY references QUERYNTENA.Estadia(esta_codigo),
+	cest_fecha datetime2(3),
+	--cest_costo_total decimal(18,2)
+)
+
 insert into QUERYNTENA.Empresa (empr_razon_social)
 select distinct EMPRESA_RAZON_SOCIAL from gd_esquema.Maestra
 
@@ -111,7 +136,9 @@ where TIPO_HABITACION_CODIGO is not null
 
 insert into QUERYNTENA.Factura
 select distinct FACTURA_NRO,clie_id,sucu_id,FACTURA_FECHA from gd_esquema.Maestra
-join QUERYNTENA.Cliente on gd_esquema.Maestra.CLIENTE_APELLIDO = QUERYNTENA.Cliente.clie_apellido and gd_esquema.Maestra.CLIENTE_NOMBRE= QUERYNTENA.Cliente.clie_nombre and gd_esquema.Maestra.CLIENTE_DNI = QUERYNTENA.Cliente.clie_dni
+join QUERYNTENA.Cliente on gd_esquema.Maestra.CLIENTE_APELLIDO = QUERYNTENA.Cliente.clie_apellido 
+	and gd_esquema.Maestra.CLIENTE_NOMBRE= QUERYNTENA.Cliente.clie_nombre 
+	and gd_esquema.Maestra.CLIENTE_DNI = QUERYNTENA.Cliente.clie_dni
 join QUERYNTENA.Sucursal on gd_esquema.Maestra.SUCURSAL_DIR = sucu_dir
 
 insert into QUERYNTENA.Estadia
@@ -123,10 +150,25 @@ select distinct FACTURA_NRO,HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES,ESTADIA_CO
 where ESTADIA_CODIGO is not null and FACTURA_NRO is not null
 
 insert into QUERYNTENA.Habitacion
-select distinct hote_id,HABITACION_NUMERO,HABITACION_PISO,HABITACION_FRENTE,HABITACION_COSTO,HABITACION_PRECIO,TIPO_HABITACION_CODIGO from gd_esquema.Maestra join QUERYNTENA.Hotel on HOTEL_CALLE = hote_calle and HOTEL_NRO_CALLE = hote_nro_calle
+select distinct hote_id,HABITACION_NUMERO,HABITACION_PISO,HABITACION_FRENTE,HABITACION_COSTO,HABITACION_PRECIO,TIPO_HABITACION_CODIGO 
+from gd_esquema.Maestra 
+join QUERYNTENA.Hotel on HOTEL_CALLE = hote_calle and HOTEL_NRO_CALLE = hote_nro_calle
+
+insert into QUERYNTENA.Vuelo
+select distinct VUELO_CODIGO, ruta_id, AVION_IDENTIFICADOR, VUELO_FECHA_SALUDA, VUELO_FECHA_LLEGADA from gd_esquema.Maestra
+join QUERYNTENA.Ruta_Aerea on RUTA_AEREA_CIU_DEST = Ruta_Aerea.ruta_ciu_dest AND RUTA_AEREA_CIU_ORIG = Ruta_Aerea.ruta_ciu_orig 
+	AND RUTA_AEREA_CODIGO = Ruta_Aerea.ruta_codigo 
+
+insert into QUERYNTENA.Butaca_Vuelo(buta_vuelo, buta_numero, buta_tipo)
+select distinct VUELO_CODIGO, BUTACA_NUMERO, BUTACA_TIPO
+from gd_esquema.Maestra
+WHERE VUELO_CODIGO IS NOT NULL
+
+insert into QUERYNTENA.Compra_Estadia
+select distinct COMPRA_NUMERO, empr_id, ESTADIA_CODIGO, COMPRA_FECHA from gd_esquema.Maestra
+join QUERYNTENA.Empresa on Empresa.empr_razon_social = EMPRESA_RAZON_SOCIAL
+where ESTADIA_CODIGO IS NOT NULL
 
 select * from gd_esquema.Maestra
-
-
 
 select distinct EMPRESA_RAZON_SOCIAL from gd_esquema.Maestra
