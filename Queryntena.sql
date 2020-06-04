@@ -116,8 +116,35 @@ create table QUERYNTENA.Habitacion_Estadia(
 	FOREIGN KEY(hest_estadia) REFERENCES QUERYNTENA.Estadia(esta_codigo),
 	FOREIGN KEY(hest_habitacion_nro) REFERENCES QUERYNTENA.Habitacion(habi_numero),
 	FOREIGN KEY(hest_hotel) REFERENCES QUERYNTENA.Hotel(hote_id),
-	habi_fecha_ini datetime2(3),
-	habi_cantidad_noches decimal(18,0)
+	hest_fecha_ini datetime2(3),
+	hest_cantidad_noches decimal(18,0)
+)
+
+-- cpas = Compra PASaje
+create table QUERYNTENA.Compra_Pasaje(
+	cpas_numero decimal(18,0) PRIMARY KEY,
+	cpas_empresa int FOREIGN KEY REFERENCES QUERYNTENA.Empresa(empr_id),
+	cpas_fecha datetime2(3),
+	--cpas_costo_total decimal(18,2)
+)
+
+create table QUERYNTENA.Venta_Pasaje(
+	vpas_id int IDENTITY(1,1) PRIMARY KEY,
+	vpas_factura decimal(18,0) FOREIGN KEY REFERENCES QUERYNTENA.Factura(fact_numero),
+	vpas_origen nvarchar(255),
+	vpas_destino nvarchar(255),
+	vpas_salida datetime2(3),
+	--vpas_precio_final decimal(18,2)
+)
+
+create table QUERYNTENA.Pasaje(
+	pasa_codigo decimal(18,0) PRIMARY KEY,
+	pasa_vuelo decimal(19,0) FOREIGN KEY REFERENCES QUERYNTENA.Vuelo(vuel_codigo),
+	pasa_butaca int FOREIGN KEY REFERENCES QUERYNTENA.Butaca_Vuelo(buta_id),
+	pasa_compra_nro decimal(18,0) FOREIGN KEY REFERENCES QUERYNTENA.Compra_Pasaje(cpas_numero),
+	pasa_venta_id int FOREIGN KEY REFERENCES QUERYNTENA.Venta_Pasaje(vpas_id),
+	pasa_costo decimal(18,2),
+	pasa_precio decimal(18,2)
 )
 
 
@@ -182,6 +209,28 @@ insert into QUERYNTENA.Compra_Estadia
 select distinct COMPRA_NUMERO, empr_id, ESTADIA_CODIGO, COMPRA_FECHA from gd_esquema.Maestra
 join QUERYNTENA.Empresa on Empresa.empr_razon_social = EMPRESA_RAZON_SOCIAL
 where ESTADIA_CODIGO IS NOT NULL
+
+-- creo que esta es la forma correcta de hacerlo pero necesitaríamos agregar PASAJE_CODIGO a la tabla Compra_Pasaje
+-- otra forma sería haciendo un procedure para el insert, usando vistas quizás?
+-- porque si en el select no pones PASAJE_CODIGO te tira otra cosa, creo que incluye las compras de estadia
+insert into QUERYNTENA.Compra_Pasaje
+select distinct COMPRA_NUMERO, empr_id, PASAJE_CODIGO, COMPRA_FECHA from gd_esquema.Maestra
+join QUERYNTENA.Empresa on Empresa.empr_razon_social = EMPRESA_RAZON_SOCIAL
+where PASAJE_CODIGO IS NOT NULL
+
+insert into QUERYNTENA.Venta_Pasaje(vpas_factura, vpas_origen, vpas_destino, vpas_salida)
+select distinct fact_numero, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA from gd_esquema.Maestra
+join QUERYNTENA.Factura on fact_numero = FACTURA_NRO
+
+-- Faltaría agregar la parte de compra_pasaje, pero primero hay que terminar esa tabla
+insert into QUERYNTENA.Pasaje
+select distinct PASAJE_CODIGO, vuel_codigo, buta_id, vpas_id, PASAJE_COSTO, PASAJE_PRECIO from gd_esquema.Maestra
+join QUERYNTENA.Vuelo on vuel_codigo = VUELO_CODIGO
+join QUERYNTENA.Butaca_Vuelo on buta_numero = BUTACA_NUMERO and buta_tipo = BUTACA_TIPO and buta_vuelo = vuel_codigo
+join QUERYNTENA.Venta_Pasaje on FACTURA_NRO = vpas_factura and RUTA_AEREA_CIU_ORIG = vpas_origen 
+	and RUTA_AEREA_CIU_DEST = vpas_destino and VUELO_FECHA_SALUDA =vpas_salida
+
+select* from QUERYNTENA.Venta_Pasaje
 
 select * from gd_esquema.Maestra
 
