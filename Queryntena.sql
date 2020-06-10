@@ -1,11 +1,13 @@
 use GD1C2020
+IF schema_id('QUERYNTENA') IS NOT NULL
+    DROP SCHEMA QUERYNTENA
+
 go
 CREATE SCHEMA QUERYNTENA AUTHORIZATION dbo
 go
 
 
 /*
-
 drop table QUERYNTENA.pasaje
 drop table QUERYNTENA.venta_pasaje
 drop table QUERYNTENA.compra_pasaje
@@ -77,7 +79,7 @@ create table QUERYNTENA.Factura(
 	fact_cliente int FOREIGN KEY references QUERYNTENA.Cliente(clie_id),
 	fact_sucursal int FOREIGN KEY references QUERYNTENA.Sucursal(sucu_id),
 	fact_fecha datetime2(3),
-	--fact_total decimal(18,2)
+	fact_total decimal(18,2)
 )
 
 create table QUERYNTENA.Estadia(
@@ -88,10 +90,10 @@ create table QUERYNTENA.Estadia(
 )
 
 create table QUERYNTENA.Venta_Estadias(
-	venta_estadia_id int IDENTITY(1,1) PRIMARY KEY,
-	venta_estadia_factura decimal(18,0) FOREIGN KEY references QUERYNTENA.Factura(fact_numero),
-	venta_estadia_precio_final decimal(18,2),
-	venta_estadia_estadia decimal(18,0) FOREIGN KEY references QUERYNTENA.Estadia(esta_codigo)
+	vest_id int IDENTITY(1,1) PRIMARY KEY,
+	vest_factura decimal(18,0) FOREIGN KEY references QUERYNTENA.Factura(fact_numero),
+	vest_precio_final decimal(18,2),
+	vest_estadia decimal(18,0) FOREIGN KEY references QUERYNTENA.Estadia(esta_codigo)
 )
 
 create table QUERYNTENA.Habitacion(
@@ -148,7 +150,7 @@ create table QUERYNTENA.Compra_Pasaje(
 	cpas_numero decimal(18,0) PRIMARY KEY,
 	cpas_empresa int FOREIGN KEY REFERENCES QUERYNTENA.Empresa(empr_id),
 	cpas_fecha datetime2(3),
-	--cpas_costo_total decimal(18,2)
+	cpas_costo_total decimal(18,2)
 )
 
 create table QUERYNTENA.Venta_Pasaje(
@@ -157,7 +159,7 @@ create table QUERYNTENA.Venta_Pasaje(
 	vpas_origen nvarchar(255),
 	vpas_destino nvarchar(255),
 	vpas_salida datetime2(3),
-	--vpas_precio_final decimal(18,2)
+	vpas_precio_final decimal(18,2)
 )
 
 create table QUERYNTENA.Pasaje(
@@ -198,22 +200,26 @@ insert into QUERYNTENA.Tipo_Habitacion
 select distinct TIPO_HABITACION_CODIGO, TIPO_HABITACION_DESC from gd_esquema.Maestra
 where TIPO_HABITACION_CODIGO is not null
 
-insert into QUERYNTENA.Factura
-select distinct FACTURA_NRO,clie_id,sucu_id,FACTURA_FECHA from gd_esquema.Maestra
+insert into QUERYNTENA.Factura(fact_numero,fact_cliente,fact_sucursal,fact_fecha,fact_total)
+select distinct FACTURA_NRO,clie_id,sucu_id,FACTURA_FECHA,
+case when PASAJE_PRECIO is not null then PASAJE_PRECIO else sum(HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES) end
+from gd_esquema.Maestra
 join QUERYNTENA.Cliente on gd_esquema.Maestra.CLIENTE_APELLIDO = QUERYNTENA.Cliente.clie_apellido 
 	and gd_esquema.Maestra.CLIENTE_NOMBRE= QUERYNTENA.Cliente.clie_nombre 
 	and gd_esquema.Maestra.CLIENTE_DNI = QUERYNTENA.Cliente.clie_dni
 join QUERYNTENA.Sucursal on gd_esquema.Maestra.SUCURSAL_DIR = sucu_dir
+group by FACTURA_NRO,clie_id,sucu_id,FACTURA_FECHA,PASAJE_PRECIO
+
 
 insert into QUERYNTENA.Estadia
 select distinct ESTADIA_CODIGO,hote_id,ESTADIA_FECHA_INI,ESTADIA_CANTIDAD_NOCHES from gd_esquema.Maestra
 join QUERYNTENA.Hotel on gd_esquema.Maestra.HOTEL_CALLE = hote_calle and HOTEL_NRO_CALLE = hote_nro_calle
 
-insert into QUERYNTENA.Venta_Estadias(venta_estadia_factura,venta_estadia_precio_final,venta_estadia_estadia)
+insert into QUERYNTENA.Venta_Estadias(vest_factura,vest_precio_final,vest_estadia)
 select distinct FACTURA_NRO,sum(HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES),ESTADIA_CODIGO from gd_esquema.Maestra
 where ESTADIA_CODIGO is not null and FACTURA_NRO is not null
 group by FACTURA_NRO,ESTADIA_CODIGO
-order by ESTADIA_CODIGO desc
+
 
 insert into QUERYNTENA.Habitacion
 select distinct hote_id,HABITACION_NUMERO,HABITACION_PISO,HABITACION_FRENTE,HABITACION_COSTO,HABITACION_PRECIO,TIPO_HABITACION_CODIGO 
@@ -238,18 +244,17 @@ where ESTADIA_CODIGO IS NOT NULL
 
 
 insert into QUERYNTENA.Compra_Pasaje
-select distinct COMPRA_NUMERO, empr_id, COMPRA_FECHA from gd_esquema.Maestra
+select distinct COMPRA_NUMERO, empr_id, COMPRA_FECHA,sum(PASAJE_COSTO) from gd_esquema.Maestra
 join QUERYNTENA.Empresa on Empresa.empr_razon_social = EMPRESA_RAZON_SOCIAL
 where PASAJE_CODIGO IS NOT NULL
+group by COMPRA_NUMERO,empr_id,COMPRA_FECHA
 
 
-insert into QUERYNTENA.Venta_Pasaje(vpas_factura, vpas_origen, vpas_destino, vpas_salida)
-select distinct fact_numero, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA from gd_esquema.Maestra
-join QUERYNTENA.Factura on fact_numero = FACTURA_NRO
+insert into QUERYNTENA.Venta_Pasaje(vpas_factura, vpas_origen, vpas_destino, vpas_salida,vpas_precio_final)
+select distinct FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA,sum(PASAJE_PRECIO) from gd_esquema.Maestra
+where FACTURA_NRO is not null
+group by FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA
 
-
-
--- Faltaría agregar la parte de compra_pasaje, pero primero hay que terminar esa tabla
 insert into QUERYNTENA.Pasaje
 select distinct PASAJE_CODIGO, VUELO_CODIGO, buta_id,COMPRA_NUMERO, vpas_id , PASAJE_COSTO, PASAJE_PRECIO from gd_esquema.Maestra
 join QUERYNTENA.Butaca_Vuelo on buta_numero = BUTACA_NUMERO and buta_tipo = BUTACA_TIPO and buta_vuelo = VUELO_CODIGO
@@ -262,18 +267,4 @@ join QUERYNTENA.Butaca_Vuelo on buta_numero = BUTACA_NUMERO and buta_tipo = BUTA
 left join QUERYNTENA.Venta_Pasaje on FACTURA_NRO = vpas_factura
 where PASAJE_CODIGO = m.PASAJE_CODIGO
 group by PASAJE_CODIGO) = 1)
-
-
-
-/*
-select distinct PASAJE_CODIGO from gd_esquema.Maestra
-order by PASAJE_CODIGO 
-
-
-select distinct PASAJE_CODIGO, VUELO_CODIGO, buta_id,COMPRA_NUMERO, vpas_id , PASAJE_COSTO, PASAJE_PRECIO from gd_esquema.Maestra
-join QUERYNTENA.Butaca_Vuelo on buta_numero = BUTACA_NUMERO and buta_tipo = BUTACA_TIPO and buta_vuelo = VUELO_CODIGO
-left join QUERYNTENA.Venta_Pasaje on FACTURA_NRO = vpas_factura
-where PASAJE_CODIGO not in(select distinct PASAJE_CODIGO from gd_esquema.Maestra
-join QUERYNTENA.Butaca_Vuelo on buta_numero = BUTACA_NUMERO and buta_tipo = BUTACA_TIPO and buta_vuelo = VUELO_CODIGO
-join QUERYNTENA.Venta_Pasaje on FACTURA_NRO = vpas_factura)*/
 
