@@ -264,7 +264,7 @@ group by COMPRA_NUMERO,empr_id,COMPRA_FECHA
 insert into QUERYNTENA.Venta_Pasaje(vpas_factura, vpas_origen, vpas_destino, vpas_salida,vpas_precio_final)
 select distinct FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA,sum(PASAJE_PRECIO) 
 from gd_esquema.Maestra
-where FACTURA_NRO is not null
+where FACTURA_NRO is not null and RUTA_AEREA_CIU_DEST is not null
 group by FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA
 
 insert into QUERYNTENA.Pasaje
