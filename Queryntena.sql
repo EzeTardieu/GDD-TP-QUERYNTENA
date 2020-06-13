@@ -116,7 +116,7 @@ create table QUERYNTENA.Vuelo(
 	vuel_fecha_llegada datetime2(3)
 )
 
---agrego un id como PK porque hay vuelos que tienen mismo nro de butaca pero de distinto tipo
+-- agregamos un id como PK porque hay vuelos que tienen mismo nro de butaca pero de distinto tipo
 create table QUERYNTENA.Butaca_Vuelo(
 	buta_id int IDENTITY(1,1) PRIMARY KEY,
 	buta_vuelo decimal(19,0) FOREIGN KEY references QUERYNTENA.Vuelo(vuel_codigo),
@@ -153,6 +153,7 @@ create table QUERYNTENA.Compra_Pasaje(
 	cpas_costo_total decimal(18,2)
 )
 
+--vpas = Venta PASaje
 create table QUERYNTENA.Venta_Pasaje(
 	vpas_id int IDENTITY(1,1) PRIMARY KEY,
 	vpas_factura decimal(18,0) FOREIGN KEY REFERENCES QUERYNTENA.Factura(fact_numero),
@@ -200,6 +201,9 @@ insert into QUERYNTENA.Tipo_Habitacion
 select distinct TIPO_HABITACION_CODIGO, TIPO_HABITACION_DESC from gd_esquema.Maestra
 where TIPO_HABITACION_CODIGO is not null
 
+/* La factura puede tener pasajes o estadías, por eso a la hora de calcular el total en el caso de
+los pasajes buscamos el valor directamente en la tabla maestra y para el caso de las estadías, 
+hacemos el cálculo para obtener su valor: sum(HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES) */
 insert into QUERYNTENA.Factura(fact_numero,fact_cliente,fact_sucursal,fact_fecha,fact_total)
 select distinct FACTURA_NRO,clie_id,sucu_id,FACTURA_FECHA,
 case when PASAJE_PRECIO is not null then PASAJE_PRECIO else sum(HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES) end
@@ -215,6 +219,7 @@ insert into QUERYNTENA.Estadia
 select distinct ESTADIA_CODIGO,hote_id,ESTADIA_FECHA_INI,ESTADIA_CANTIDAD_NOCHES from gd_esquema.Maestra
 join QUERYNTENA.Hotel on gd_esquema.Maestra.HOTEL_CALLE = hote_calle and HOTEL_NRO_CALLE = hote_nro_calle
 
+/* Calculamos el precio final como sum(HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES) */
 insert into QUERYNTENA.Venta_Estadias(vest_factura,vest_precio_final,vest_estadia)
 select distinct FACTURA_NRO,sum(HABITACION_PRECIO*ESTADIA_CANTIDAD_NOCHES),ESTADIA_CODIGO from gd_esquema.Maestra
 where ESTADIA_CODIGO is not null and FACTURA_NRO is not null
@@ -236,22 +241,29 @@ select distinct VUELO_CODIGO, BUTACA_NUMERO, BUTACA_TIPO
 from gd_esquema.Maestra
 WHERE VUELO_CODIGO IS NOT NULL
 
+/* Indicamos que ESTADIA_CODIGO no debe ser null ya que hay casos donde hay números de compra pero
+se deben a las compras de pasajes */
+--Explicar el subselect?
 insert into QUERYNTENA.Compra_Estadia
-select distinct COMPRA_NUMERO, empr_id, ESTADIA_CODIGO, COMPRA_FECHA,(select sum(ESTADIA_CANTIDAD_NOCHES*HABITACION_COSTO) from gd_esquema.Maestra where ESTADIA_CODIGO = ma.ESTADIA_CODIGO and FACTURA_NRO is not null ) from gd_esquema.Maestra ma
+select distinct COMPRA_NUMERO, empr_id, ESTADIA_CODIGO, COMPRA_FECHA,
+	(select sum(ESTADIA_CANTIDAD_NOCHES*HABITACION_COSTO) 
+	from gd_esquema.Maestra 
+	where ESTADIA_CODIGO = ma.ESTADIA_CODIGO and FACTURA_NRO is not null ) 
+from gd_esquema.Maestra ma
 join QUERYNTENA.Empresa on Empresa.empr_razon_social = EMPRESA_RAZON_SOCIAL
 where ESTADIA_CODIGO IS NOT NULL
 
-
-
+/* Indicamos que PASAJE_CODIGO no debe ser null ya que hay casos donde hay números de compra pero
+se deben a las compras de estadías */
 insert into QUERYNTENA.Compra_Pasaje
 select distinct COMPRA_NUMERO, empr_id, COMPRA_FECHA,sum(PASAJE_COSTO) from gd_esquema.Maestra
 join QUERYNTENA.Empresa on Empresa.empr_razon_social = EMPRESA_RAZON_SOCIAL
 where PASAJE_CODIGO IS NOT NULL
 group by COMPRA_NUMERO,empr_id,COMPRA_FECHA
 
-
 insert into QUERYNTENA.Venta_Pasaje(vpas_factura, vpas_origen, vpas_destino, vpas_salida,vpas_precio_final)
-select distinct FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA,sum(PASAJE_PRECIO) from gd_esquema.Maestra
+select distinct FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA,sum(PASAJE_PRECIO) 
+from gd_esquema.Maestra
 where FACTURA_NRO is not null
 group by FACTURA_NRO, RUTA_AEREA_CIU_ORIG, RUTA_AEREA_CIU_DEST, VUELO_FECHA_SALUDA
 
