@@ -141,8 +141,6 @@ create table QUERYNTENA.Habitacion_Estadia(
 	PRIMARY KEY(hest_estadia, hest_habitacion_nro, hest_hotel),
 	FOREIGN KEY(hest_estadia) REFERENCES QUERYNTENA.Estadia(esta_codigo),
 	FOREIGN KEY(hest_hotel,hest_habitacion_nro) REFERENCES QUERYNTENA.Habitacion(habi_hotel,habi_numero),
-	hest_fecha_ini datetime2(3),
-	hest_cantidad_noches decimal(18,0)
 )
 
 -- cpas = Compra PASaje
@@ -230,6 +228,9 @@ insert into QUERYNTENA.Habitacion
 select distinct hote_id,HABITACION_NUMERO,HABITACION_PISO,HABITACION_FRENTE,HABITACION_COSTO,HABITACION_PRECIO,TIPO_HABITACION_CODIGO 
 from gd_esquema.Maestra 
 join QUERYNTENA.Hotel on HOTEL_CALLE = hote_calle and HOTEL_NRO_CALLE = hote_nro_calle
+
+insert into QUERYNTENA.Habitacion_Estadia
+select distinct ESTADIA_CODIGO,HABITACION_NUMERO,hote_id from gd_esquema.Maestra join QUERYNTENA.Hotel on HOTEL_CALLE = hote_calle and HOTEL_NRO_CALLE = hote_nro_calle
 
 insert into QUERYNTENA.Vuelo
 select distinct VUELO_CODIGO, ruta_id, AVION_IDENTIFICADOR, VUELO_FECHA_SALUDA, VUELO_FECHA_LLEGADA from gd_esquema.Maestra
